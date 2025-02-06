@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ChatBot Frontend</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f4f4f4;
+        }
+        #chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; }
+        #input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        #sendButton {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            background: #007BFF;
+            color: #fff;
+            cursor: pointer;
+        }
+        #sendButton:hover { background: #0056b3; }
+        #response {
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            background: #fafafa;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message-container { display: flex; margin: 5px 0; }
+        .user-message { justify-content: flex-end; }
+        .bot-message { justify-content: flex-start; }
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            display: inline-block;
+            max-width: 70%;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        .user-message .message {
+            background: #007BFF;
+            color: white;
+            text-align: right;
+        }
+        .bot-message .message {
+            background: #f1f1f1;
+            color: black;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+<div id="chat-container">
+    <h2>Chat with AI</h2>
+    <div id="input-container">
+        <input type="text" id="messageInput" placeholder="Enter your message here" />
+        <button id="sendButton">Send</button>
+    </div>
+    <div id="response">
+        <!-- Chat response messages will appear here -->
+    </div>
+</div>
+
+<script>
+    const sendButton = document.getElementById('sendButton');
+    const messageInput = document.getElementById('messageInput');
+    const responseDiv = document.getElementById('response');
+
+    // Function to append a new message to the chat display
+    function appendMessage(message, isBot = false) {
+        const messageContainer = document.createElement('div');
+        messageContainer.className = "message-container " + (isBot ? "bot-message" : "user-message");
+        const p = document.createElement('p');
+        p.className = "message";
+        p.innerHTML = message; // Use innerHTML to render any HTML formatting
+        messageContainer.appendChild(p);
+        responseDiv.appendChild(messageContainer);
+        responseDiv.scrollTop = responseDiv.scrollHeight;
+    }
+
+    sendButton.addEventListener('click', () => {
+        const message = messageInput.value.trim();
+        if (!message) {
+            alert("Please enter a message!");
+            return;
+        }
+        appendMessage(message, false);  // Append user message
+        messageInput.value = "";          // Clear the input field
+
+        const backendUrl = "http://localhost:8080"; // Adjust as needed
+        const url = `${backendUrl}/api/chat?message=${encodeURIComponent(message)}`;
+
+        appendMessage("...", true); // Placeholder for bot response
+
+        const eventSource = new EventSource(url);
+        let fullMessage = "";
+        let receivedData = false; // Flag to indicate whether data has been received
+
+        eventSource.onmessage = (event) => {
+            receivedData = true;
+            fullMessage += event.data + " ";
+            const lastBotMessage = responseDiv.lastChild.querySelector('.message');
+            if (lastBotMessage) {
+                lastBotMessage.innerHTML = fullMessage;
+            }
+        };
+
+        eventSource.onerror = (err) => {
+            if (!receivedData) {
+                console.error("SSE encountered an error before receiving any data:", err);
+                appendMessage("An error occurred while receiving the response.", true);
+            } else {
+                console.log("SSE connection closed after receiving data.");
+            }
+            eventSource.close();
+        };
+    });
+</script>
+</body>
+</html>
